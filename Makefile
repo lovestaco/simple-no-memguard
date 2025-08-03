@@ -3,7 +3,7 @@ GARBLE := $(GOBIN)/garble
 GARBLE_FLAGS := -literals -seed=random
 
 compressed-build:
-	CGO_ENABLED=0 go build -x -ldflags='-s -w -extldflags "-static"' -o liveapi-runner .
+	go build -x -ldflags='-s -w -extldflags "-static"' -o liveapi-runner .
 	upx --ultra-brute liveapi-runner
 
 garble-compressed-build:
@@ -11,12 +11,20 @@ garble-compressed-build:
 		echo "Installing Garble..."; \
 		/usr/bin/go install mvdan.cc/garble@latest; \
 	fi
-	GOGARBLE=runner CGO_ENABLED=0 GOROOT=/usr/local/go $(GARBLE) $(GARBLE_FLAGS) build -x \
+	GOGARBLE=simple-no-memguard GOROOT=/usr/local/go $(GARBLE) $(GARBLE_FLAGS) build -x \
 		-ldflags='-s -w' -o liveapi-runner .
 	upx --ultra-brute liveapi-runner
 
+garble-build:
+	@if [ ! -f "$(GARBLE)" ]; then \
+		echo "Installing Garble..."; \
+		/usr/bin/go install mvdan.cc/garble@latest; \
+	fi
+	GOGARBLE=simple-no-memguard GOROOT=/usr/local/go $(GARBLE) $(GARBLE_FLAGS) build -x \
+		-ldflags='-s -w' -o liveapi-runner .
+
 build:
-	CGO_ENABLED=0 go build -a -ldflags '-extldflags "-static"' -o liveapi-runner .
+	go build -a -ldflags '-extldflags "-static"' -o liveapi-runner .
 
 run:
 	./liveapi-runner
