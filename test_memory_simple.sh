@@ -5,6 +5,11 @@
 
 set -e
 
+if [ "$EUID" -ne 0 ]; then
+    echo -e "\033[0;31m[ERROR]\033[0m This script must be run as root (sudo)."
+    exit 1
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
