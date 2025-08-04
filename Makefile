@@ -7,7 +7,7 @@ SOURCES := $(wildcard *.go)
 BUILD_DIR := build
 
 compressed-build: $(SOURCES)
-	go build -x -ldflags='-s -w -extldflags "-static"' -o liveapi-runner .
+	go build -v -ldflags='-s -w -extldflags "-static"' -o liveapi-runner .
 	upx --ultra-brute liveapi-runner
 
 garble-compressed-build: $(SOURCES)
@@ -28,7 +28,7 @@ garble-build: $(SOURCES)
 		-ldflags='-s -w' -o liveapi-runner .
 
 build: $(SOURCES)
-	go build -a -ldflags '-extldflags "-static"' -o liveapi-runner .
+	go build -a -o liveapi-runner .
 
 build-plugin:
 	@echo "Building and encrypting plugin..."
