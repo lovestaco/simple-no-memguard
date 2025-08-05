@@ -117,6 +117,7 @@ func (sw *secureStringWriter) Write(data []byte) (int, error) {
 }
 
 // getDataFromPlugin gets data from the loaded plugin and protects it with memguard
+// NOTE: This function is kept for compatibility but not used in the current API
 func getDataFromPlugin() (*memguard.LockedBuffer, error) {
 	var loadErr error
 	
@@ -160,14 +161,15 @@ func getDataFromPlugin() (*memguard.LockedBuffer, error) {
 func dataHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	
-	protectedBuffer, err := getDataFromPlugin()
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error loading plugin: %v", err), http.StatusInternalServerError)
+	// Just verify the encrypted plugin file exists without loading it
+	encryptedPluginPath := "prompt.so.enc"
+	if _, err := os.Stat(encryptedPluginPath); os.IsNotExist(err) {
+		http.Error(w, "Plugin not found", http.StatusInternalServerError)
 		return
 	}
 	
-	// Write directly from protected memory without creating intermediate strings
-	w.Write(protectedBuffer.Bytes())
+	// Don't load the plugin at all - just return "ok"
+	w.Write([]byte("ok"))
 }
 
 func main() {
