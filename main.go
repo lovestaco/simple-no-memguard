@@ -9,10 +9,16 @@ import (
 	"path/filepath"
 	"plugin"
 	"sync"
+
+	"github.com/awnumar/memguard"
 )
 
 // Encryption key - in production, this should be stored securely
 var encryptionKey = []byte("0123456789abcdef0123456789abcdef") // 32 bytes for AES-256
+
+// Global protected buffer for sensitive data
+var protectedData *memguard.LockedBuffer
+var dataOnce sync.Once
 
 // decryptFile decrypts a file using AES-256-GCM
 func decryptFile(inputPath, outputPath string) error {
@@ -99,43 +105,76 @@ func loadPlugin() (*plugin.Plugin, error) {
 	return loadedPlugin, nil
 }
 
-// getDataFromPlugin gets data from the loaded plugin
-func getDataFromPlugin() (string, error) {
-	// Load the plugin
-	p, err := loadPlugin()
-	if err != nil {
-		return "", err
+// secureStringWriter writes data directly from protected memory to HTTP response
+type secureStringWriter struct {
+	buffer *memguard.LockedBuffer
+	writer http.ResponseWriter
+}
+
+func (sw *secureStringWriter) Write(data []byte) (int, error) {
+	// Write directly from protected memory without creating intermediate strings
+	return sw.writer.Write(data)
+}
+
+// getDataFromPlugin gets data from the loaded plugin and protects it with memguard
+func getDataFromPlugin() (*memguard.LockedBuffer, error) {
+	var loadErr error
+	
+	dataOnce.Do(func() {
+		// Load the plugin
+		p, err := loadPlugin()
+		if err != nil {
+			loadErr = err
+			return
+		}
+		
+		// Look up the GetData function
+		getDataSym, err := p.Lookup("GetData")
+		if err != nil {
+			loadErr = fmt.Errorf("failed to lookup GetData function: %v", err)
+			return
+		}
+		
+		// Type assert to function
+		getDataFunc, ok := getDataSym.(func() string)
+		if !ok {
+			loadErr = fmt.Errorf("GetData is not a function returning string")
+			return
+		}
+		
+		// Get the raw data
+		rawData := getDataFunc()
+		
+		// Create a protected buffer for the sensitive data
+		protected := memguard.NewBufferFromBytes([]byte(rawData))
+		protectedData = protected
+	})
+	
+	if loadErr != nil {
+		return nil, loadErr
 	}
 	
-	// Look up the GetData function
-	getDataSym, err := p.Lookup("GetData")
-	if err != nil {
-		return "", fmt.Errorf("failed to lookup GetData function: %v", err)
-	}
-	
-	// Type assert to function
-	getDataFunc, ok := getDataSym.(func() string)
-	if !ok {
-		return "", fmt.Errorf("GetData is not a function returning string")
-	}
-	
-	// Call the function
-	return getDataFunc(), nil
+	return protectedData, nil
 }
 
 func dataHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	
-	data, err := getDataFromPlugin()
+	protectedBuffer, err := getDataFromPlugin()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error loading plugin: %v", err), http.StatusInternalServerError)
 		return
 	}
 	
-	w.Write([]byte(data))
+	// Write directly from protected memory without creating intermediate strings
+	w.Write(protectedBuffer.Bytes())
 }
 
 func main() {
+	// Initialize memguard
+	memguard.CatchInterrupt()
+	defer memguard.Purge()
+	
 	http.HandleFunc("/data", dataHandler)
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		panic(err)
