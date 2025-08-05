@@ -1,2 +1,13 @@
 .liveapi-runner
 *liveapi*
+
+# Test artifacts
+coverage.out
+coverage.html
+benchmark_results.txt
+*_test_output.txt
+test_results/
+
+# Build artifacts
+memguard_app
+*.exe
