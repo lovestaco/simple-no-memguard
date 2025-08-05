@@ -161,14 +161,19 @@ func getDataFromPlugin() (*memguard.LockedBuffer, error) {
 func dataHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	
-	// Just verify the encrypted plugin file exists without loading it
-	encryptedPluginPath := "prompt.so.enc"
-	if _, err := os.Stat(encryptedPluginPath); os.IsNotExist(err) {
-		http.Error(w, "Plugin not found", http.StatusInternalServerError)
+	// Load plugin and get the data to print it
+	_, err := getDataFromPlugin()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error loading plugin: %v", err), http.StatusInternalServerError)
 		return
 	}
 	
-	// Don't load the plugin at all - just return "ok"
+	// Print the actual prompt data to console/stdout
+	// fmt.Println("=== PROMPT DATA ===")
+	// fmt.Println(string(protectedBuffer.Bytes()))
+	// fmt.Println("=== END PROMPT ===")
+	
+	// Still return "ok" to the client
 	w.Write([]byte("ok"))
 }
 
