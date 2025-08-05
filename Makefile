@@ -36,8 +36,11 @@ build-plugin:
 
 build-all: build-plugin build
 
-run: build
+run:
 	./liveapi-runner
+
+build-and-run: build
+	./liveapi-runner 
 
 test-memory:
 	@echo "Testing memory extraction vulnerability..."
